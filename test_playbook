@@ -1,0 +1,27 @@
+- name: Get serial number from Junos EX2300 switch
+  hosts: "{{ group }}"
+  gather_facts: no
+  connection: network_cli
+  vars:
+    ansible_user: "{{ login_username }}"
+    ansible_password: "{{ login_password }}"
+
+  tasks:
+    - name: Run show chassis hardware
+      junipernetworks.junos.junos_command:
+        commands:
+          - show chassis hardware
+      register: chassis_output
+
+    - name: Extract chassis serial number
+      set_fact:
+        chassis_serial: >-
+          {{
+            (chassis_output.stdout[0].splitlines()
+              | select('match', '^Chassis')
+              | list)[0].split()[1]
+          }}
+
+    - name: Display serial number with switch name
+      debug:
+        msg: "{{ inventory_hostname }} - {{ chassis_serial }}"
