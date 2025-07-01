@@ -1,0 +1,16 @@
+---
+- name: Retrieve usernames from Junos EX2300 switch
+  hosts: Juniper_switches
+  gather_facts: no
+  connection: network_cli
+
+  tasks:
+    - name: Show system login configuration
+      junipernetworks.junos.junos_command:
+        commands:
+          - show configuration system login
+      register: config_output
+
+    - name: Display usernames
+      debug:
+        msg: "{{ config_output.stdout }}"

@@ -1,0 +1,26 @@
+- name: Get firmware version from Junos switches
+  hosts: "{{ group }}"
+  gather_facts: no
+  connection: network_cli
+
+  tasks:
+    - name: Run show version
+      junipernetworks.junos.junos_command:
+        commands:
+          - show version
+      register: version_output
+
+    - name: Extract firmware version from output
+      set_fact:
+        firmware_version: >-
+          {{
+            (
+              version_output.stdout[0].splitlines()
+              | select('search', '^Junos:')
+              | list
+            )[0].split()[1]
+          }}
+
+    - name: Display firmware version with switch name
+      debug:
+        msg: "{{ inventory_hostname }} - Firmware Version: {{ firmware_version }}"
