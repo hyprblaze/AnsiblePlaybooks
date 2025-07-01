@@ -1,0 +1,21 @@
+---
+- name: Retrieve Clean Server Info
+  hosts: "{{ group }}"
+  gather_facts: true
+  become: false
+
+  tasks:
+    - name: Get root disk usage
+      command: df -h /
+      register: root_disk
+      changed_when: false
+
+    - name: Print clean formatted server info line by line
+      debug:
+        msg:
+          - "Server Name: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }} (Kernel: {{ ansible_kernel }})"
+          - "IP: {{ ansible_default_ipv4.address }}"
+          - "CPU: {{ ansible_processor[1] | default('Unknown') }}, {{ ansible_processor_cores }} cores, {{ ansible_processor_vcpus }} threads"
+          - "RAM: {{ ansible_memtotal_mb }} MB total, {{ ansible_memfree_mb }} MB free"
+          - "DISK: {{ (root_disk.stdout_lines[1].split())[1] }} total, {{ (root_disk.stdout_lines[1].split())[2] }} used, {{ (root_disk.stdout_lines[1].split())[3] }} available ({{ (root_disk.stdout_lines[1].split())[4] }} used)"
