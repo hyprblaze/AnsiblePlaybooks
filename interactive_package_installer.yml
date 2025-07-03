@@ -1,0 +1,105 @@
+---
+- name: Interactive Package Checker & Installer
+  hosts: "{{ group }}"
+  become: true
+  gather_facts: false
+
+  vars_prompt:
+    - name: package_choice
+      prompt: |
+        Select a package to install:
+        1. apt update & upgrade
+        2. git
+        3. ansible
+        4. htop
+        5. curl
+        6. ufw
+        7. fail2ban
+        8. docker.io
+        9. net-tools
+        10. python3-pip
+        Enter a number (1-10):
+      private: no
+
+  vars:
+    package_map:
+      "1": "__update_upgrade__"
+      "2": "git"
+      "3": "ansible"
+      "4": "htop"
+      "5": "curl"
+      "6": "ufw"
+      "7": "fail2ban"
+      "8": "docker.io"
+      "9": "net-tools"
+      "10": "python3-pip"
+
+  tasks:
+
+    - name: Validate selection
+      fail:
+        msg: "Invalid selection '{{ package_choice }}'. Choose a number between 1 and 10."
+      when: package_choice not in package_map
+
+    - name: Run apt update & upgrade if selected
+      apt:
+        update_cache: yes
+        upgrade: dist
+      when: package_map[package_choice] == "__update_upgrade__"
+
+    - name: Set selected package name
+      set_fact:
+        selected_package: "{{ package_map[package_choice] }}"
+      when: package_map[package_choice] != "__update_upgrade__"
+
+    - name: Check if package exists in apt cache
+      shell: apt-cache show "{{ selected_package }}"
+      register: pkg_info
+      failed_when: pkg_info.rc != 0
+      changed_when: false
+      when: selected_package is defined
+
+    - name: Check if package is already installed
+      shell: dpkg -s "{{ selected_package }}"
+      register: installed_check
+      failed_when: false
+      changed_when: false
+      when: selected_package is defined
+
+    - name: Package is already installed
+      debug:
+        msg: "✅ Package '{{ selected_package }}' is already installed."
+      when:
+        - selected_package is defined
+        - installed_check is defined
+        - installed_check.rc == 0
+
+    - name: Install the package
+      apt:
+        name: "{{ selected_package }}"
+        state: present
+        update_cache: yes
+      when:
+        - selected_package is defined
+        - installed_check is defined
+        - installed_check.rc != 0
+
+    - name: Show installed version or confirmation
+      shell: |
+        {{ selected_package }} --version || {{ selected_package }} -v || echo 'No version output available.'
+      register: version_output
+      changed_when: false
+      when:
+        - selected_package is defined
+        - installed_check is defined
+        - installed_check.rc != 0
+
+    - name: Output installation confirmation
+      debug:
+        msg: |
+          ✅ '{{ selected_package }}' has been installed successfully.
+          {{ version_output.stdout }}
+      when:
+        - selected_package is defined
+        - installed_check is defined
+        - installed_check.rc != 0

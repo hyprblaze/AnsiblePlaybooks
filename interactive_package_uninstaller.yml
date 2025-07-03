@@ -1,0 +1,67 @@
+---
+- name: Interactive Package Checker & Uninstaller
+  hosts: "{{ group }}"
+  become: true
+  gather_facts: false
+
+  vars_prompt:
+    - name: package_choice
+      prompt: |
+        Select a package to uninstall:
+        1. git
+        2. ansible
+        3. htop
+        4. curl
+        5. ufw
+        6. fail2ban
+        7. docker.io
+        8. net-tools
+        9. python3-pip
+        Enter a number (1-9):
+      private: no
+
+  vars:
+    package_map:
+      "1": "git"
+      "2": "ansible"
+      "3": "htop"
+      "4": "curl"
+      "5": "ufw"
+      "6": "fail2ban"
+      "7": "docker.io"
+      "8": "net-tools"
+      "9": "python3-pip"
+
+  tasks:
+
+    - name: Validate selection
+      fail:
+        msg: "❌ Invalid selection '{{ package_choice }}'. Choose a number between 1 and 9."
+      when: package_choice not in package_map
+
+    - name: Set selected package name
+      set_fact:
+        selected_package: "{{ package_map[package_choice] }}"
+
+    - name: Check if package is installed
+      shell: dpkg -s "{{ selected_package }}"
+      register: installed_check
+      failed_when: false
+      changed_when: false
+
+    - name: Package is not installed
+      debug:
+        msg: "📦 Package '{{ selected_package }}' is not installed."
+      when: installed_check.rc != 0
+
+    - name: Uninstall the package
+      apt:
+        name: "{{ selected_package }}"
+        state: absent
+        purge: yes
+      when: installed_check.rc == 0
+
+    - name: Confirm uninstallation
+      debug:
+        msg: "✅ Package '{{ selected_package }}' has been uninstalled."
+      when: installed_check.rc == 0
